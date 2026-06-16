@@ -45,29 +45,34 @@ El usuario dice haber completado esta misión: "${misionNombre}"
 
 Analiza la imagen y determina si es evidencia razonable de que completó la misión.
 
-Responde SOLO en este formato JSON exacto sin ningún texto adicional:
-{
-  "valido": true o false,
-  "confianza": número del 1 al 100,
-  "mensaje": "mensaje corto y motivador de máximo 2 oraciones"
-}
+Responde SOLO con un objeto JSON válido, sin markdown, sin backticks, sin texto adicional. Solo el JSON puro:
+{"valido": true, "confianza": 85, "mensaje": "mensaje motivador aquí"}
 
-Sé generoso con la validación. Si hay alguna posibilidad razonable de que la imagen muestre la actividad, valídala. El objetivo es motivar, no juzgar.`,
+Sé generoso con la validación.`,
             },
           ],
         },
       ],
     });
 
-    const texto = message.content[0].text;
-    const json = JSON.parse(texto);
+    const texto = message.content[0].text.trim();
+    console.log('Respuesta IA:', texto);
+    
+    // Limpiar cualquier markdown
+    const textoLimpio = texto
+      .replace(/```json/g, '')
+      .replace(/```/g, '')
+      .trim();
+    
+    console.log('Texto limpio:', textoLimpio);
+    const json = JSON.parse(textoLimpio);
     res.json(json);
   } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({
-      valido: true,
-      confianza: 70,
-      mensaje: 'No pudimos analizar la imagen automáticamente, pero registramos tu evidencia.',
+    console.error('Error completo:', error.message);
+    res.json({
+      valido: false,
+      confianza: 0,
+      mensaje: 'Error al analizar: ' + error.message,
     });
   }
 });
