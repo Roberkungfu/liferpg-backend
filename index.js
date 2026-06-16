@@ -39,16 +39,7 @@ app.post('/validar-evidencia', async (req, res) => {
             },
             {
               type: 'text',
-              text: `Eres un validador de misiones para una app de desarrollo personal llamada LifeRPG.
-
-El usuario dice haber completado esta misión: "${misionNombre}"
-
-Analiza la imagen y determina si es evidencia razonable de que completó la misión.
-
-Responde SOLO con un objeto JSON válido, sin markdown, sin backticks, sin texto adicional. Solo el JSON puro:
-{"valido": true, "confianza": 85, "mensaje": "mensaje motivador aquí"}
-
-Sé generoso con la validación.`,
+              text: `Eres un validador de misiones para LifeRPG. El usuario completó: "${misionNombre}". Analiza la imagen. Responde ÚNICAMENTE con JSON válido sin markdown: {"valido":true,"confianza":85,"mensaje":"mensaje aquí"}`,
             },
           ],
         },
@@ -56,28 +47,74 @@ Sé generoso con la validación.`,
     });
 
     const texto = message.content[0].text.trim();
-    console.log('Respuesta IA:', texto);
-    
-    // Limpiar cualquier markdown
-    const textoLimpio = texto
-      .replace(/```json/g, '')
-      .replace(/```/g, '')
-      .trim();
-    
-    console.log('Texto limpio:', textoLimpio);
+    console.log('Respuesta raw:', texto);
+    const textoLimpio = texto.replace(/```json/g, '').replace(/```/g, '').trim();
     const json = JSON.parse(textoLimpio);
     res.json(json);
   } catch (error) {
-    console.error('Error completo:', error.message);
+    console.error('Error:', error.message);
     res.json({
-      valido: false,
-      confianza: 0,
-      mensaje: 'Error al analizar: ' + error.message,
+      valido: true,
+      confianza: 70,
+      mensaje: 'No pudimos analizar la imagen automáticamente, pero registramos tu evidencia.',
+    });
+  }
+});
+
+app.post('/mentor', async (req, res) => {
+  const { clase, nivel, misionesCompletadas, racha, historial } = req.body;
+
+  try {
+    const message = await anthropic.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 800,
+      messages: [
+        {
+          role: 'user',
+          content: `Eres un mentor de desarrollo personal en una app llamada LifeRPG. Tu rol es ser directo, motivador y específico. No des consejos genéricos.
+
+Datos del jugador:
+- Clase: ${clase}
+- Nivel: ${nivel}
+- Misiones completadas: ${misionesCompletadas}
+- Racha actual: ${racha} días
+- Historial reciente: ${historial || 'Sin historial aún'}
+
+Da un mensaje de mentor personalizado de máximo 3 párrafos cortos. Incluye:
+1. Un reconocimiento específico de su progreso actual
+2. Un desafío concreto para hoy basado en su clase
+3. Una pregunta poderosa para que reflexione
+
+Sé directo, como un mentor que te conoce bien. No uses frases genéricas.
+
+Responde SOLO con JSON sin markdown: {"mensaje": "tu mensaje aquí", "desafio": "desafío específico de hoy", "pregunta": "pregunta poderosa"}`,
+        },
+      ],
+    });
+
+    const texto = message.content[0].text.trim();
+    const textoLimpio = texto.replace(/```json/g, '').replace(/```/g, '').trim();
+    const json = JSON.parse(textoLimpio);
+    res.json(json);
+  } catch (error) {
+    console.error('Error mentor:', error.message);
+    res.json({
+      mensaje: 'Sigue adelante. Cada misión que completas te acerca a la mejor versión de ti mismo.',
+      desafio: 'Completa tus 3 misiones de hoy sin excusas.',
+      pregunta: '¿Qué versión de ti mismo quieres ser en 90 días?',
     });
   }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`LifeRPG Backend corriendo en puerto ${PORT}`);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Error no capturado:', err.message);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Promise rechazada:', reason);
 });
